@@ -29,7 +29,8 @@
 | 依赖 | 版本 |
 | --- | --- |
 | JDK | 21+ |
-| Spring Boot | 4.0.6（随仓库 `worm-dependence-parent` 基线统一管理） |
+| Maven | 3.9+ |
+| Spring Boot | 4.0.6 |
 | MyBatis-Plus | 可选（仅使用内置实体驱动持久化策略时需要；依赖声明为 `optional`，按需引入） |
 
 ## 快速开始
@@ -40,11 +41,9 @@
 <dependency>
     <groupId>com.worm</groupId>
     <artifactId>statemachine-spring-boot-starter</artifactId>
-    <version>${revision}</version>
+    <version>1.0.0</version>
 </dependency>
 ```
-
-版本号随仓库统一版本管理（`${revision}`），无需单独指定。
 
 ### 2. YAML 声明状态机
 

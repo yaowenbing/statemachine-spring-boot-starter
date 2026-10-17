@@ -1,6 +1,5 @@
 package com.worm.statemachine.registry;
 
-import cn.hutool.core.text.CharSequenceUtil;
 import com.worm.statemachine.core.StateMachineDefinition;
 
 import java.util.Collections;
@@ -39,7 +38,7 @@ public class StateMachineRegistry {
     public void register(String machineCode, StateMachineDefinition definition) {
         StateMachineDefinition existing = definitions.putIfAbsent(machineCode, definition);
         if (existing != null) {
-            throw new IllegalArgumentException(CharSequenceUtil.format("machineCode 已注册，不可重复: {}", machineCode));
+            throw new IllegalArgumentException("machineCode 已注册，不可重复: " + machineCode);
         }
     }
 

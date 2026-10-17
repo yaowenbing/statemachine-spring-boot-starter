@@ -3,13 +3,36 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <parent>
-        <artifactId>worm-starter</artifactId>
-        <groupId>com.worm</groupId>
-        <version>${revision}</version>
-    </parent>
+    <groupId>com.worm</groupId>
     <artifactId>statemachine-spring-boot-starter</artifactId>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
+
+    <name>statemachine-spring-boot-starter</name>
+    <description>纯 YAML 声明式、无回调的 Spring Boot 状态机 Starter：以数据库为状态唯一真实来源，提供枚举强类型事件驱动、并发安全、启动期 fail-fast 校验的状态流转能力</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>21</java.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
+        <!-- 为什么：Lombok 1.18.30 发布于 JDK 21 之前，在 JDK 21 的 javac 下注解处理器静默失效（@Slf4j/@Data 不生成代码）；1.18.34 起官方支持 JDK 21 —— 干什么：固定 lombok 版本以兼容 JDK 21 基线 -->
+        <lombok.version>1.18.34</lombok.version>
+        <mybatis-plus.version>3.5.16</mybatis-plus.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- 为什么：本项目独立发布，不依赖内部 BOM，直接导入 Spring Boot 官方 BOM 统一管理 spring-boot / starter-test / mockito 等版本 —— 干什么：以 import 方式引入 spring-boot-dependencies -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -24,22 +47,38 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot</artifactId>
         </dependency>
-        <!--自定义工具集-->
-        <dependency>
-            <groupId>com.worm</groupId>
-            <artifactId>worm-toolkit-hutool</artifactId>
-        </dependency>
         <!-- MyBatis-Plus 持久化策略 — optional，业务方按需引入 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+            <version>${mybatis-plus.version}</version>
             <optional>true</optional>
             <scope>provided</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
 </project>

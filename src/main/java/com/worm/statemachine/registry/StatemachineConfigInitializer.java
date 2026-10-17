@@ -1,6 +1,5 @@
 package com.worm.statemachine.registry;
 
-import cn.hutool.core.text.CharSequenceUtil;
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.worm.properties.StatemachineProperties;
@@ -126,7 +125,7 @@ public class StatemachineConfigInitializer {
         }
         // 为什么：machineCode 重复会导致 sendEvent 路由歧义，必须在注册期拦截 —— 干什么：重复时立即抛出 IllegalArgumentException 快速失败
         if (registry.contains(machineCode)) {
-            throw new IllegalArgumentException(CharSequenceUtil.format("YAML 状态机定义中存在重复的 machineCode: {}", machineCode));
+            throw new IllegalArgumentException("YAML 状态机定义中存在重复的 machineCode: " + machineCode);
         }
         // 为什么：initialState / transitions 缺失会导致执行期 findTransition 失败，提前在注册期卡住 —— 干什么：继续向下校验字段完整性
         validateDefinitionFields(def, machineCode);
@@ -147,11 +146,11 @@ public class StatemachineConfigInitializer {
     private void validateDefinitionFields(StateMachineDefinition def, String machineCode) {
         // 为什么：initialState 是 resolve 阶段推断源状态的起点，缺失将导致内存/DB 状态无法对齐 —— 干什么：空则抛异常终止注册
         if (def.getInitialState() == null || def.getInitialState().isBlank()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format("YAML 状态机定义非法，machineCode '{}' 的 initialState 不能为空", machineCode));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 initialState 不能为空");
         }
         // 为什么：transitions 是状态机流转规则集合，缺失则状态机完全无法推进 —— 干事：空则抛异常终止注册
         if (def.getTransitions() == null || def.getTransitions().isEmpty()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format("YAML 状态机定义非法，machineCode '{}' 的 transitions 不能为空", machineCode));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 transitions 不能为空");
         }
         // 为什么：每条流转的 source/event/target 任缺其一该条流转即不可执行，需要逐条把关 —— 干什么：逐条调用 validateTransition 校验字段
         for (TransitionDefinition t : def.getTransitions()) {
@@ -170,7 +169,7 @@ public class StatemachineConfigInitializer {
         // 为什么：sourceState / event / targetState 是合法流转的三个必要维度，任缺一则该流转不可执行 —— 干什么：任一字段为 null 即判定为非法定义并终止注册
         if (t.sourceState() == null || t.event() == null || t.targetState() == null) {
             // 为什么：需要把 machineCode 与具体缺失维度反馈给定义编写方以快速定位 —— 干什么：抛出带 machineCode 的异常说明"每条流转必须同时具备 source、event、target"
-            throw new IllegalArgumentException(CharSequenceUtil.format("YAML 状态机定义非法，machineCode '{}' 的每条流转必须同时具备 source、event、target", machineCode));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的每条流转必须同时具备 source、event、target");
         }
     }
 
@@ -200,15 +199,13 @@ public class StatemachineConfigInitializer {
         // 为什么：TableInfo 是 MyBatis-Plus 解析 @TableName/@TableId/@TableField 后的元数据，是后续列校验与 Mapper 解析的基础 —— 干什么：获取 TableInfo，为空说明实体未被 MP 管理（无 @TableName 或未注册 Mapper）
         TableInfo tableInfo = TableInfoHelper.getTableInfo(entityClass);
         if (tableInfo == null) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 未被 MyBatis-Plus 管理（缺少 @TableName 或 Mapper 未注册）",
-                    machineCode, bizEntity));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 未被 MyBatis-Plus 管理（缺少 @TableName 或 Mapper 未注册）");
         }
         // 为什么：@TableId 是持久化写状态的必要条件（biz-id-column 默认取 @TableId 的 keyColumn），缺失则无法做条件更新 —— 干什么：校验实体存在主键
         if (!tableInfo.havePK()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 缺少 @TableId 主键注解",
-                    machineCode, bizEntity));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 缺少 @TableId 主键注解");
         }
         // 为什么：biz-column 是状态写入的目标列，列名非法或不存在会在运行时才暴露 —— 干什么：校验 biz-column 匹配标识符正则且存在于 TableInfo 字段列表
         validateBizColumn(def.getBizColumn(), tableInfo, machineCode, bizEntity);
@@ -231,9 +228,8 @@ public class StatemachineConfigInitializer {
             return Class.forName(bizEntity);
         } catch (ClassNotFoundException e) {
             // 为什么：类不存在是配置错误，需明确反馈给定义编写方 —— 干什么：抛出带 machineCode 与 biz-entity 的异常说明类加载失败
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 无法加载（ClassNotFoundException）",
-                    machineCode, bizEntity), e);
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 无法加载（ClassNotFoundException）", e);
         }
     }
 
@@ -247,23 +243,20 @@ public class StatemachineConfigInitializer {
     private void validateBizColumn(String bizColumn, TableInfo tableInfo, String machineCode, String bizEntity) {
         // 为什么：biz-column 是持久化必填项，缺失则状态无列可写 —— 干什么：空则抛异常终止注册
         if (bizColumn == null || bizColumn.isBlank()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 未声明 biz-column（状态列必填）",
-                    machineCode, bizEntity));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 未声明 biz-column（状态列必填）");
         }
         // 为什么：列名含特殊字符（空格、引号、运算符等）会导致 SQL 语法错误或注入风险 —— 干什么：用标识符正则卡住非法列名
         if (!IDENTIFIER_PATTERN.matcher(bizColumn).matches()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-column '{}' 不是合法标识符（必须匹配 [A-Za-z_]\\w*）",
-                    machineCode, bizColumn));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-column '"
+                    + bizColumn + "' 不是合法标识符（必须匹配 [A-Za-z_]\\w*）");
         }
         // 为什么：列名合法不代表实体中存在该列，需与 TableInfo 字段列表做交叉校验 —— 干什么：遍历 fieldList 检查 column 是否匹配
         boolean columnExists = tableInfo.getFieldList().stream()
                 .anyMatch(field -> bizColumn.equals(field.getColumn()));
         if (!columnExists) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-column '{}' 不存在于实体 '{}' 的 TableInfo 字段列表中",
-                    machineCode, bizColumn, bizEntity));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-column '"
+                    + bizColumn + "' 不存在于实体 '" + bizEntity + "' 的 TableInfo 字段列表中");
         }
     }
 
@@ -281,9 +274,8 @@ public class StatemachineConfigInitializer {
         }
         // 为什么：主键列名含特殊字符同样会导致 SQL 语法错误 —— 干什么：用标识符正则卡住非法列名
         if (!IDENTIFIER_PATTERN.matcher(bizIdColumn).matches()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-id-column '{}' 不是合法标识符（必须匹配 [A-Za-z_]\\w*）",
-                    machineCode, bizIdColumn));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-id-column '"
+                    + bizIdColumn + "' 不是合法标识符（必须匹配 [A-Za-z_]\\w*）");
         }
     }
 
@@ -299,26 +291,23 @@ public class StatemachineConfigInitializer {
         String mapperClassName = tableInfo.getCurrentNamespace();
         // 为什么：currentNamespace 为空说明 Mapper 未被正确注册到 MP 环境 —— 干什么：空则抛异常说明 Mapper 未注册
         if (mapperClassName == null || mapperClassName.isBlank()) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 未关联到任何 MyBatis Mapper（TableInfo.currentNamespace 为空）",
-                    machineCode, bizEntity));
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 未关联到任何 MyBatis Mapper（TableInfo.currentNamespace 为空）");
         }
         // 为什么：Mapper 类本身必须存在于 classpath 中 —— 干什么：加载 Mapper 类，失败则快速失败
         Class<?> mapperClass;
         try {
             mapperClass = Class.forName(mapperClassName);
         } catch (ClassNotFoundException e) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 关联的 Mapper '{}' 无法加载（ClassNotFoundException）",
-                    machineCode, bizEntity, mapperClassName), e);
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 关联的 Mapper '" + mapperClassName + "' 无法加载（ClassNotFoundException）", e);
         }
         // 为什么：getMapper 会校验 Mapper 是否已注册到 SqlSession，未注册则抛异常 —— 干什么：调用 getMapper 校验可解析，失败则 fail-fast
         try {
             sqlSessionTemplate.getMapper(mapperClass);
         } catch (Exception e) {
-            throw new IllegalArgumentException(CharSequenceUtil.format(
-                    "YAML 状态机定义非法，machineCode '{}' 的 biz-entity '{}' 关联的 Mapper '{}' 无法从 SqlSessionTemplate 解析（请确认 @MapperScan 已扫描该 Mapper）",
-                    machineCode, bizEntity, mapperClassName), e);
+            throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
+                    + bizEntity + "' 关联的 Mapper '" + mapperClassName + "' 无法从 SqlSessionTemplate 解析（请确认 @MapperScan 已扫描该 Mapper）", e);
         }
     }
 

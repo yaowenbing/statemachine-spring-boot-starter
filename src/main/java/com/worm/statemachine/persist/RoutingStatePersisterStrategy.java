@@ -1,6 +1,5 @@
 package com.worm.statemachine.persist;
 
-import cn.hutool.core.text.CharSequenceUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,7 +42,7 @@ public class RoutingStatePersisterStrategy implements IStatePersisterStrategy {
     public void writeNewState(String machineCode, String bizId, String newStateId) {
         IStatePersisterStrategy strategy = resolveStrategy(machineCode);
         if (strategy == null) {
-            throw new IllegalStateException(CharSequenceUtil.format("未找到 machineCode 对应的持久化策略: {}", machineCode));
+            throw new IllegalStateException("未找到 machineCode 对应的持久化策略: " + machineCode);
         }
         strategy.writeNewState(machineCode, bizId, newStateId);
     }
@@ -52,7 +51,7 @@ public class RoutingStatePersisterStrategy implements IStatePersisterStrategy {
     public int writeNewState(String machineCode, String bizId, String fromState, String toState) {
         IStatePersisterStrategy strategy = resolveStrategy(machineCode);
         if (strategy == null) {
-            throw new IllegalStateException(CharSequenceUtil.format("未找到 machineCode 对应的持久化策略: {}", machineCode));
+            throw new IllegalStateException("未找到 machineCode 对应的持久化策略: " + machineCode);
         }
         // 为什么：路由器仅做路由，条件更新的语义与受影响行数由具体策略实现决定 —— 干什么：把条件更新请求透传到匹配到的具体策略，并直接返回其受影响行数
         return strategy.writeNewState(machineCode, bizId, fromState, toState);
@@ -95,7 +94,7 @@ public class RoutingStatePersisterStrategy implements IStatePersisterStrategy {
                 }
             } else {
                 if (specific != null) {
-                    throw new IllegalStateException(CharSequenceUtil.format("Route conflict: [{}] and [{}] both support machineCode: {}", specific.getClass().getSimpleName(), strategy.getClass().getSimpleName(), machineCode));
+                    throw new IllegalStateException("Route conflict: [" + specific.getClass().getSimpleName() + "] and [" + strategy.getClass().getSimpleName() + "] both support machineCode: " + machineCode);
                 }
                 specific = strategy;
             }

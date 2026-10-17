@@ -29,7 +29,8 @@ The engine does not depend on any specific ORM — persistence goes through the 
 | Dependency | Version |
 | --- | --- |
 | JDK | 21+ |
-| Spring Boot | 4.0.6 (managed uniformly by the repository's `worm-dependence-parent` baseline) |
+| Maven | 3.9+ |
+| Spring Boot | 4.0.6 |
 | MyBatis-Plus | Optional (only required when using the built-in entity-driven persistence strategy; the dependency is declared as `optional`, bring it in as needed) |
 
 ## Quick Start
@@ -40,11 +41,9 @@ The engine does not depend on any specific ORM — persistence goes through the 
 <dependency>
     <groupId>com.worm</groupId>
     <artifactId>statemachine-spring-boot-starter</artifactId>
-    <version>${revision}</version>
+    <version>1.0.0</version>
 </dependency>
 ```
-
-The version number follows the repository's unified version management (`${revision}`); no separate specification is needed.
 
 ### 2. Declare the state machine in YAML
 
