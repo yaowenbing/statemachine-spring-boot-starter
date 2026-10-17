@@ -7,6 +7,7 @@ import com.worm.statemachine.core.StateMachineResult;
 import com.worm.statemachine.persist.InMemoryStatePersisterStrategy;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -164,7 +165,7 @@ class StateMachineTemplateTimeoutTest {
         // 为什么：bizId 无历史状态时 resolve 以 initialState 作为源状态出发（仅回归兜底，超时路径不触达） —— 干什么：设置 initialState 为 "PENDING"
         definition.setInitialState("PENDING");
         // 为什么：定义需与真实形态一致（至少一条流转），保证若锁意外获取成功也能走完整管道 —— 干什么：登记 PENDING -START-> RUNNING 一条流转
-        definition.setTransitions(List.of(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
+        definition.setTransitions(Collections.singletonList(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
         // 为什么：未登记的定义对模板不可见 —— 干什么：按 machineCode "m" 注册定义
         registry.register("m", definition);
         // 为什么：测试场景不依赖数据库，用内存策略承接状态读写 —— 干什么：实例化 InMemoryStatePersisterStrategy

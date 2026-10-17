@@ -28,10 +28,12 @@ The engine does not depend on any specific ORM — persistence goes through the 
 
 | Dependency | Version |
 | --- | --- |
-| JDK | 21+ |
-| Maven | 3.9+ |
-| Spring Boot | 4.0.6 |
+| JDK | 8+ |
+| Maven | 3.6+ |
+| Spring Boot | 2.7.x |
 | MyBatis-Plus | Optional (only required when using the built-in entity-driven persistence strategy; the dependency is declared as `optional`, bring it in as needed) |
+
+This repository targets the JDK 8 / Spring Boot 2.7 baseline; build output is Java 8 bytecode, ready to use in Spring Boot 2.x projects.
 
 ## Quick Start
 
@@ -68,7 +70,7 @@ com:
               target-state: FINISHED
 ```
 
-Transition keys use kebab-case (`source-state` / `target-state`); Spring Boot relaxed binding also accepts camelCase (`sourceState` / `targetState`). For a real production example, refer to the `application.yml` of `worm-micro-spider-starter`.
+Transition keys use kebab-case (`source-state` / `target-state`); Spring Boot relaxed binding also accepts camelCase (`sourceState` / `targetState`).
 
 ### 3. Define the event enum
 

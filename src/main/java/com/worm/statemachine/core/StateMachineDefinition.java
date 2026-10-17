@@ -51,10 +51,26 @@ public class StateMachineDefinition {
      * 状态流转定义。
      *
      * <p>描述一条从源状态到目标状态的合法转换规则。
-     * 使用 record 类型保证不可变性，符合配置模型的语义。
+     * 使用不可变 final 类保证不可变性，符合配置模型的语义。
      * 纯 YAML 驱动模型，不含条件/动作回调引用（conditionBean/actionBean 已移除）。</p>
      */
-    public record TransitionDefinition(String sourceState, String event, String targetState) {
+    public static final class TransitionDefinition {
+
+        /**
+         * 源状态标识
+         */
+        private final String sourceState;
+
+        /**
+         * 事件标识
+         */
+        private final String event;
+
+        /**
+         * 目标状态标识
+         */
+        private final String targetState;
+
         /**
          * 构造简单流转，要求源状态、事件、目标状态均非空。
          *
@@ -62,11 +78,26 @@ public class StateMachineDefinition {
          * @param event       事件标识
          * @param targetState 目标状态标识
          */
-        public TransitionDefinition {
+        public TransitionDefinition(String sourceState, String event, String targetState) {
             // 为什么：流转三要素不可缺失，否则状态机无法路由 —— 干什么：校验非空并快速失败
             if (sourceState == null || event == null || targetState == null) {
                 throw new IllegalArgumentException("TransitionDefinition sourceState, event, and targetState MUST NOT be null");
             }
+            this.sourceState = sourceState;
+            this.event = event;
+            this.targetState = targetState;
+        }
+
+        public String getSourceState() {
+            return sourceState;
+        }
+
+        public String getEvent() {
+            return event;
+        }
+
+        public String getTargetState() {
+            return targetState;
         }
     }
 }

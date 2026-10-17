@@ -6,6 +6,7 @@ import com.worm.properties.StatemachineProperties;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +29,7 @@ class YamlRegistrationRedTest {
     @Test
     void autoConfigurationMethodsShouldNotAcceptStatemachinePropertiesParam() throws Exception {
         // AutoConfiguration 的 @Bean 方法不应该接受 StatemachineProperties 参数
-        for (var method : StatemachineAutoConfiguration.class.getDeclaredMethods()) {
+        for (Method method : StatemachineAutoConfiguration.class.getDeclaredMethods()) {
             if (method.isAnnotationPresent(org.springframework.context.annotation.Bean.class)) {
                 Parameter[] params = method.getParameters();
                 for (Parameter param : params) {

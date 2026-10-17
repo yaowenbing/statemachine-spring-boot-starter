@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.TableInfo;
 import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.worm.statemachine.core.StateMachineDefinition;
+import com.worm.statemachine.core.Strings;
 import com.worm.statemachine.registry.StateMachineRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -134,7 +135,7 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
             return null;
         }
         // 为什么：需要取首行 bizColumn 值作为当前状态 —— 干什么：获取首行 Map 中 bizColumn 对应的值
-        Object stateValue = rows.getFirst().get(holder.bizColumn());
+        Object stateValue = rows.get(0).get(holder.getBizColumn());
         // 为什么：状态值可能为 null（列允许 NULL），需做空保护 —— 干什么：null 时返回 null，否则转为 String
         return stateValue == null ? null : String.valueOf(stateValue);
     }
@@ -142,7 +143,7 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     /**
      * 通过业务 Mapper 执行 selectMaps 查询（捕获通配符泛型，避免 wildcard capture 编译错误）。
      *
-     * <p>为什么：MapperHolder.mapper 声明为 BaseMapper<?>，直接调用 selectMaps(QueryWrapper<?>) 会因
+     * <p>为什么：MapperHolder 持有者声明的 mapper 为 BaseMapper<?>，直接调用 selectMaps(QueryWrapper<?>) 会因
      * wildcard capture 不兼容导致编译失败；通过泛型辅助方法 &lt;T&gt; 捕获具体类型参数，
      * 使 QueryWrapper&lt;T&gt; 与 BaseMapper&lt;T&gt; 的类型参数一致，绕过编译期通配符限制。
      * 干什么：构造 QueryWrapper.select(bizColumn).eq(idColumn, bizId)，委托 mapper.selectMaps 执行并返回结果。</p>
@@ -155,10 +156,10 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     @SuppressWarnings("unchecked")
     private <T> List<Map<String, Object>> selectMaps(MapperHolder holder, String bizId) {
         // 为什么：需要将通配符 BaseMapper<?> 转为具体类型参数以匹配 Wrapper —— 干什么：捕获泛型 T 获取类型化 mapper
-        BaseMapper<T> mapper = (BaseMapper<T>) holder.mapper();
+        BaseMapper<T> mapper = (BaseMapper<T>) holder.getMapper();
         // 为什么：仅 select bizColumn 可减少 IO 与序列化开销，无需全字段 —— 干什么：构造类型化 QueryWrapper 指定查询列与主键条件
         QueryWrapper<T> qw = new QueryWrapper<>();
-        qw.select(holder.bizColumn()).eq(holder.idColumn(), bizId);
+        qw.select(holder.getBizColumn()).eq(holder.getIdColumn(), bizId);
         // 为什么：执行查询返回 Map 列表，避免实体类字段映射开销 —— 干什么：调用 mapper.selectMaps 获取结果
         return mapper.selectMaps(qw);
     }
@@ -204,13 +205,13 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
         MapperHolder holder = resolveAndCache(machineCode);
         // 为什么：UpdateWrapper 构造条件更新 WHERE idColumn=bizId AND bizColumn=from SET bizColumn=to，实现乐观并发控制 —— 干什么：构造类型化 UpdateWrapper 并链式拼接条件
         UpdateWrapper<Object> uw = new UpdateWrapper<>();
-        uw.eq(holder.idColumn(), bizId);
+        uw.eq(holder.getIdColumn(), bizId);
         // 为什么：fromState 非空时才追加源状态条件；为 null 时退化为无条件落库（仅按主键更新） —— 干什么：fromState 非空时追加 bizColumn=from 条件
         if (fromState != null) {
-            uw.eq(holder.bizColumn(), fromState);
+            uw.eq(holder.getBizColumn(), fromState);
         }
         // 为什么：SET bizColumn=to 是状态迁移的目标值 —— 干什么：追加 SET 子句
-        uw.set(holder.bizColumn(), toState);
+        uw.set(holder.getBizColumn(), toState);
         // 为什么：mapper.update(null, uw) 执行条件更新并返回影响行数，0 表示并发失败（fromState 不匹配） —— 干什么：执行更新并返回影响行数
         return mapperUpdate(holder, uw);
     }
@@ -231,7 +232,7 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     @SuppressWarnings("unchecked")
     private <T> int mapperUpdate(MapperHolder holder, UpdateWrapper<T> uw) {
         // 为什么：需要将通配符 BaseMapper<?> 转为具体类型参数以匹配 Wrapper —— 干什么：捕获泛型 T 获取类型化 mapper
-        BaseMapper<T> mapper = (BaseMapper<T>) holder.mapper();
+        BaseMapper<T> mapper = (BaseMapper<T>) holder.getMapper();
         // 为什么：执行条件更新返回影响行数，调用方据此判断并发结果 —— 干什么：调用 mapper.update(null, uw) 执行并返回影响行数
         return mapper.update(null, uw);
     }
@@ -376,13 +377,13 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     private String resolveIdColumn(StateMachineDefinition definition, TableInfo tableInfo, String machineCode) {
         // 为什么：bizIdColumn 是可选配置，优先使用显式声明 —— 干什么：取 definition 中的 bizIdColumn
         String bizIdColumn = definition.getBizIdColumn();
-        if (bizIdColumn != null && !bizIdColumn.isBlank()) {
+        if (!Strings.isBlank(bizIdColumn)) {
             // 为什么：显式声明了 bizIdColumn，直接使用 —— 干什么：返回声明的列名
             return bizIdColumn;
         }
         // 为什么：未声明 bizIdColumn 时回退到 @TableId 的 keyColumn —— 干什么：取 tableInfo 的主键列名
         String keyColumn = tableInfo.getKeyColumn();
-        if (keyColumn == null || keyColumn.isBlank()) {
+        if (Strings.isBlank(keyColumn)) {
             // 为什么：keyColumn 为空说明实体未配置主键，无法做条件更新 —— 干什么：抛出异常说明主键列名为空
             throw new IllegalStateException(
                     "无法解析主键列名: machineCode=" + machineCode + ", bizEntity=" + definition.getBizEntity());

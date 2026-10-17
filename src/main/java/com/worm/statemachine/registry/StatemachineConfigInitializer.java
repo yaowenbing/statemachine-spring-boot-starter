@@ -5,8 +5,9 @@ import com.baomidou.mybatisplus.core.metadata.TableInfoHelper;
 import com.worm.properties.StatemachineProperties;
 import com.worm.statemachine.core.StateMachineDefinition;
 import com.worm.statemachine.core.StateMachineDefinition.TransitionDefinition;
+import com.worm.statemachine.core.Strings;
 import com.worm.statemachine.persist.RoutingStatePersisterStrategy;
-import jakarta.annotation.PostConstruct;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -119,7 +120,7 @@ public class StatemachineConfigInitializer {
         // 为什么：machineCode 是路由唯一键，必须非空 —— 干什么：掠取 machineCode 供后续校验与注册
         String machineCode = def.getMachineCode();
         // 为什么：machineCode 为空是非法的噪声配置，不应阻塞其他定义注册 —— 干什么：空 machineCode 跳过并告警
-        if (machineCode == null || machineCode.isBlank()) {
+        if (Strings.isBlank(machineCode)) {
             log.warn("跳过machineCode为空的定义");
             return;
         }
@@ -145,7 +146,7 @@ public class StatemachineConfigInitializer {
      */
     private void validateDefinitionFields(StateMachineDefinition def, String machineCode) {
         // 为什么：initialState 是 resolve 阶段推断源状态的起点，缺失将导致内存/DB 状态无法对齐 —— 干什么：空则抛异常终止注册
-        if (def.getInitialState() == null || def.getInitialState().isBlank()) {
+        if (Strings.isBlank(def.getInitialState())) {
             throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 initialState 不能为空");
         }
         // 为什么：transitions 是状态机流转规则集合，缺失则状态机完全无法推进 —— 干事：空则抛异常终止注册
@@ -167,7 +168,7 @@ public class StatemachineConfigInitializer {
      */
     private void validateTransition(TransitionDefinition t, String machineCode) {
         // 为什么：sourceState / event / targetState 是合法流转的三个必要维度，任缺一则该流转不可执行 —— 干什么：任一字段为 null 即判定为非法定义并终止注册
-        if (t.sourceState() == null || t.event() == null || t.targetState() == null) {
+        if (t.getSourceState() == null || t.getEvent() == null || t.getTargetState() == null) {
             // 为什么：需要把 machineCode 与具体缺失维度反馈给定义编写方以快速定位 —— 干什么：抛出带 machineCode 的异常说明"每条流转必须同时具备 source、event、target"
             throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的每条流转必须同时具备 source、event、target");
         }
@@ -185,7 +186,7 @@ public class StatemachineConfigInitializer {
     private void validateBizMetadata(StateMachineDefinition def, String machineCode) {
         // 为什么：biz-entity 是持久化元数据的起点，未声明则无需校验 —— 干什么：未配置 biz-entity 时直接跳过
         String bizEntity = def.getBizEntity();
-        if (bizEntity == null || bizEntity.isBlank()) {
+        if (Strings.isBlank(bizEntity)) {
             return;
         }
         // 为什么：SqlSessionTemplate 是 optional Bean，未注入说明消费侧未引入 MyBatis，无法做持久化元数据校验 —— 干什么：SqlSessionTemplate 不可用时跳过，避免非 MyBatis 场景误杀
@@ -242,7 +243,7 @@ public class StatemachineConfigInitializer {
      */
     private void validateBizColumn(String bizColumn, TableInfo tableInfo, String machineCode, String bizEntity) {
         // 为什么：biz-column 是持久化必填项，缺失则状态无列可写 —— 干什么：空则抛异常终止注册
-        if (bizColumn == null || bizColumn.isBlank()) {
+        if (Strings.isBlank(bizColumn)) {
             throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
                     + bizEntity + "' 未声明 biz-column（状态列必填）");
         }
@@ -269,7 +270,7 @@ public class StatemachineConfigInitializer {
      */
     private void validateBizIdColumn(String bizIdColumn, String machineCode) {
         // 为什么：biz-id-column 是可选配置，未声明时跳过 —— 干什么：空值直接返回
-        if (bizIdColumn == null || bizIdColumn.isBlank()) {
+        if (Strings.isBlank(bizIdColumn)) {
             return;
         }
         // 为什么：主键列名含特殊字符同样会导致 SQL 语法错误 —— 干什么：用标识符正则卡住非法列名
@@ -290,7 +291,7 @@ public class StatemachineConfigInitializer {
         // 为什么：currentNamespace 是 MyBatis-Plus 在初始化 Mapper 时记录的全限定名，即业务 Mapper 接口名 —— 干什么：取出 Mapper FQN
         String mapperClassName = tableInfo.getCurrentNamespace();
         // 为什么：currentNamespace 为空说明 Mapper 未被正确注册到 MP 环境 —— 干什么：空则抛异常说明 Mapper 未注册
-        if (mapperClassName == null || mapperClassName.isBlank()) {
+        if (Strings.isBlank(mapperClassName)) {
             throw new IllegalArgumentException("YAML 状态机定义非法，machineCode '" + machineCode + "' 的 biz-entity '"
                     + bizEntity + "' 未关联到任何 MyBatis Mapper（TableInfo.currentNamespace 为空）");
         }

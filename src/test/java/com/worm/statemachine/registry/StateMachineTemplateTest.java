@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,7 +65,7 @@ class StateMachineTemplateTest {
         // 为什么：bizId 无历史状态时 resolve 以 initialState 作为源状态出发 —— 干什么：设置 initialState 为 "PENDING"
         definition.setInitialState("PENDING");
         // 为什么：TestEvent.START.getEventId() 返回 "START"，流转 event 必须与其一致才能命中目标态 —— 干什么：登记 PENDING -START-> RUNNING 一条流转
-        definition.setTransitions(List.of(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
+        definition.setTransitions(Collections.singletonList(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
         // 为什么：未登记的定义对模板不可见，sendEvent 会报 no definition found —— 干什么：按 machineCode "m" 注册定义
         registry.register("m", definition);
         // 为什么：测试场景不依赖数据库，用内存策略承接状态读写即可 —— 干什么：实例化 InMemoryStatePersisterStrategy
@@ -121,7 +123,7 @@ class StateMachineTemplateTest {
         // 为什么：查询 API 无记录时必须返回 null 而非 initialState，此值仅作对照不参与断言 —— 干什么：设置 initialState 为 "PENDING"
         definition.setInitialState("PENDING");
         // 为什么：定义需与真实形态一致（至少一条流转），查询断言本身不依赖它 —— 干什么：登记 PENDING -START-> RUNNING 一条流转
-        definition.setTransitions(List.of(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
+        definition.setTransitions(Collections.singletonList(new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING")));
         // 为什么：未登记的定义对模板不可见，需按 machineCode 注册 —— 干什么：按 machineCode "m" 注册定义
         registry.register("m", definition);
         // 为什么：测试场景不依赖数据库，用内存策略预置与读取状态快照 —— 干什么：实例化 InMemoryStatePersisterStrategy
@@ -163,7 +165,7 @@ class StateMachineTemplateTest {
         // 为什么：当前状态由内存 persister 显式预置，initialState 不参与本用例断言，此值仅保证定义形态完整 —— 干什么：设置 initialState 为 "PENDING"
         definition.setInitialState("PENDING");
         // 为什么：目标契约要求返回当前状态下的全部可执行事件，需两条以 PENDING 为源状态的流转 —— 干什么：登记 PENDING -START-> RUNNING 与 PENDING -CANCEL-> CANCELLED 两条流转
-        definition.setTransitions(List.of(
+        definition.setTransitions(Arrays.asList(
                 new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING"),
                 new StateMachineDefinition.TransitionDefinition("PENDING", "CANCEL", "CANCELLED")));
         // 为什么：未登记的定义对模板不可见，需按 machineCode 注册 —— 干什么：按 machineCode "m" 注册定义
@@ -204,7 +206,7 @@ class StateMachineTemplateTest {
         // 为什么：当前状态由内存 persister 显式预置，initialState 不参与本用例断言，此值仅保证定义形态完整 —— 干什么：设置 initialState 为 "PENDING"
         definition.setInitialState("PENDING");
         // 为什么：目标契约要求按当前状态匹配流转事件，需两条以 PENDING 为源状态的流转与 4.3 口径一致 —— 干什么：登记 PENDING -START-> RUNNING 与 PENDING -CANCEL-> CANCELLED 两条流转
-        definition.setTransitions(List.of(
+        definition.setTransitions(Arrays.asList(
                 new StateMachineDefinition.TransitionDefinition("PENDING", "START", "RUNNING"),
                 new StateMachineDefinition.TransitionDefinition("PENDING", "CANCEL", "CANCELLED")));
         // 为什么：未登记的定义对模板不可见，需按 machineCode 注册 —— 干什么：按 machineCode "m" 注册定义

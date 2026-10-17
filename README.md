@@ -28,10 +28,12 @@
 
 | 依赖 | 版本 |
 | --- | --- |
-| JDK | 21+ |
-| Maven | 3.9+ |
-| Spring Boot | 4.0.6 |
+| JDK | 8+ |
+| Maven | 3.6+ |
+| Spring Boot | 2.7.x |
 | MyBatis-Plus | 可选（仅使用内置实体驱动持久化策略时需要；依赖声明为 `optional`，按需引入） |
+
+本仓库为 JDK 8 / Spring Boot 2.7 基线，编译产物为 Java 8 字节码，可直接用于 Spring Boot 2.x 项目。
 
 ## 快速开始
 
@@ -68,7 +70,7 @@ com:
               target-state: FINISHED
 ```
 
-流转键使用 kebab-case（`source-state` / `target-state`），Spring Boot 宽松绑定同样接受 camelCase（`sourceState` / `targetState`）。真实生产示例可参考 `worm-micro-spider-starter` 的 `application.yml`。
+流转键使用 kebab-case（`source-state` / `target-state`），Spring Boot 宽松绑定同样接受 camelCase（`sourceState` / `targetState`）。
 
 ### 3. 定义事件枚举
 

@@ -4,8 +4,10 @@ import com.worm.statemachine.core.*;
 import com.worm.statemachine.persist.IStatePersisterStrategy;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 状态机模板。
@@ -163,16 +165,16 @@ public class StateMachineTemplate {
         // 为什么：定义是流转元数据的唯一来源，复用既有注册表查找避免重复实现查找逻辑 —— 干什么：按 machineCode 从注册表获取状态机定义
         StateMachineDefinition definition = registry.getDefinition(machineCode);
         // 为什么：定义不存在时不存在任何合法流转，返回空列表比 NPE 更符合查询语义且不与 resolve 的失败路径耦合 —— 干什么：判空并返回不可变空列表
-        if (definition == null) return List.of();
+        if (definition == null) return Collections.emptyList();
         // 为什么：复用本类查询方法，保持"当前状态读持久化策略"的单一来源不漂移 —— 干什么：调用 getCurrentState 读取持久化状态
         String currentState = getCurrentState(machineCode, bizId);
         // 为什么：查询侧允许 initialState 回退（D2 决策），与 resolve 管道对未流转实体的源状态推导语义一致 —— 干什么：当前状态为 null 时回退 definition.getInitialState()
         String effectiveState = (currentState != null) ? currentState : definition.getInitialState();
         // 为什么：可用事件即以当前状态为源状态的全部流转的事件标识，Stream 链式写法避免手写循环 —— 干什么：过滤 sourceState 匹配的流转并收集 event 为 List<String>
         return definition.getTransitions().stream()
-                .filter(t -> t.sourceState().equals(effectiveState))
-                .map(StateMachineDefinition.TransitionDefinition::event)
-                .toList();
+                .filter(t -> t.getSourceState().equals(effectiveState))
+                .map(StateMachineDefinition.TransitionDefinition::getEvent)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -299,7 +301,7 @@ public class StateMachineTemplate {
             ctx.setResult(StateMachineResult.failed(machineCode, "no transition from state '" + ctx.getSourceState() + "' on event '" + ctx.getEvent() + "'"));
             return;
         }
-        ctx.setTargetState(transition.targetState());
+        ctx.setTargetState(transition.getTargetState());
 
         log.debug("管道解析完成: machineCode={}, bizId={}, 源状态={}, 事件={}, 目标状态={}", machineCode, ctx.getBizId(), ctx.getSourceState(), ctx.getEvent(), ctx.getTargetState());
     }
@@ -357,6 +359,6 @@ public class StateMachineTemplate {
      */
     private StateMachineDefinition.TransitionDefinition findTransition(StateMachineDefinition definition, String sourceState, String eventId) {
         // 为什么：调用方 resolve 已取得定义并对 null 提前短路，方法内重复查询注册表与判空属死代码 —— 干什么：删除重复 getDefinition 与判空，直接在传入定义上过滤流转
-        return definition.getTransitions().stream().filter(t -> t.sourceState().equals(sourceState) && t.event().equals(eventId)).findFirst().orElse(null);
+        return definition.getTransitions().stream().filter(t -> t.getSourceState().equals(sourceState) && t.getEvent().equals(eventId)).findFirst().orElse(null);
     }
 }
