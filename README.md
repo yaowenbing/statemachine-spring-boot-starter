@@ -269,3 +269,7 @@ YAML 中 `transitions` 的 `event` 字段填枚举的 `getEventId()` 返回值�
 ### 3. 多实例部署要注意什么？
 
 默认的 `LocalReentrantDistributedLock` 只在单个 JVM 进程内互斥，**不跨实例**。多实例部署需自行提供 `IDistributedLock` 实现（如基于 Redisson 的跨 JVM 锁），注册为 Bean 即可覆盖默认实现。即使锁跨实例失效，数据库条件更新（0 行即失败）仍能阻止状态被并发覆盖，但会以失败结果的形式让后到方感知抢占。
+
+## 许可证
+
+本项目基于 [Apache License 2.0](LICENSE) 开源，详见 [LICENSE](LICENSE) 文件。

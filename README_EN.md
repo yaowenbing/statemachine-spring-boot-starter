@@ -269,3 +269,7 @@ Without MyBatis-Plus, the starter's built-in in-memory strategy only serves as a
 ### 3. What to pay attention to in multi-instance deployments?
 
 The default `LocalReentrantDistributedLock` only provides mutual exclusion within a single JVM process — **not across instances**. Multi-instance deployments must supply their own `IDistributedLock` implementation (e.g., a Redisson-based cross-JVM lock); registering it as a bean overrides the default implementation. Even if the lock fails across instances, the database conditional update (0 rows means failure) still prevents the state from being overwritten concurrently, but the latecomer perceives the preemption in the form of a failed result.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE). See the [LICENSE](LICENSE) file for details.
