@@ -5,9 +5,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * 分布式锁抽象接口。
  *
- * <p>将"获取锁"和"释放锁"抽象为接口，使状态机核心层与具体的锁实现
- * （ReentrantLock / Redis 锁 / Zookeeper 锁 等）完全解耦。
- * 业务方 MUST 通过实现此接口提供具体的分布式锁逻辑（见 0b.2/0b.3 实现）。</p>
+ * <p>将"获取锁"和"释放锁"抽象为 SPI 接口，使状态机核心层与具体的锁实现
+ * （ReentrantLock / Redis 锁 / Zookeeper 锁 等）完全解耦；
+ * 具体实现负责提供锁的尝试获取与释放语义，未提供实现时框架默认注入进程内实现，业务方也可按需注册自己的实现。</p>
  *
  * <p>接口语义对齐 {@link java.util.concurrent.locks.ReentrantLock}：
  * 获取锁失败（等待超时或中断）时不抛异常，而是由 {@code tryLock} 返回 false；

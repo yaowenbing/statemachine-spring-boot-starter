@@ -63,4 +63,13 @@ public class StatemachineProperties {
      */
     // 为什么：definitions 是核心配置入口，为空时状态机无定义可注册 —— 干什么：绑定 com.worm.statemachine.definitions 列表
     private List<StateMachineDefinition> definitions = new ArrayList<>();
+
+    /**
+     * 分布式锁等待超时秒数，默认 10 秒。
+     *
+     * <p>Spring Boot 宽松绑定将 kebab-case 配置项 {@code lock-timeout-seconds}
+     * 自动映射到该 camelCase 字段，业务方无需额外转换器。</p>
+     */
+    // 为什么：状态持久化加锁需可配置的超时上限，避免死等 —— 干什么：绑定 com.worm.statemachine.lock-timeout-seconds，默认 10 秒
+    private Long lockTimeoutSeconds = 10L;
 }

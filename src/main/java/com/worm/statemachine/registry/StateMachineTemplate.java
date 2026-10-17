@@ -2,9 +2,9 @@ package com.worm.statemachine.registry;
 
 import com.worm.statemachine.core.*;
 import com.worm.statemachine.persist.IStatePersisterStrategy;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -18,13 +18,12 @@ import java.util.concurrent.TimeUnit;
  * 同时通过管道模式使每个步骤职责单一、可独立测试和替换。</p>
  */
 @Slf4j
-@RequiredArgsConstructor
 public class StateMachineTemplate {
 
     /**
      * 状态机注册表。
      *
-     * <p>干什么：根据 machineCode 获取状态机定义（状态、事件、流转关系）和业务适配器。</p>
+     * <p>干什么：根据 machineCode 获取状态机定义（状态、事件、流转关系）。</p>
      * <p>为什么：状态机引擎不硬编码任何业务逻辑，所有业务的状态机元数据均通过注册表动态获取，
      * 实现业务与引擎的解耦。</p>
      */
@@ -49,30 +48,168 @@ public class StateMachineTemplate {
     private final IDistributedLock lock;
 
     /**
-     * 获取锁的超时时间（秒）。
+     * 3 参兼容构造的默认锁等待超时（秒）。
      *
-     * <p>干什么：限制等待锁的最大时长，超时则拒绝执行。</p>
-     * <p>为什么：防止某个业务实体的状态变更长时间阻塞后续请求，
-     * 超时快速失败比无限等待更利于系统的稳定性和可观测性。</p>
+     * <p>干什么：作为未显式传入超时的 3 参兼容构造的兜底默认值。</p>
+     * <p>为什么：spider 与 StatemachineAutoConfiguration 等既有调用方仍以 3 参构造实例化模板，
+     * 默认值必须与原 LOCK_TIMEOUT_SECONDS=10 完全一致，避免兼容构造悄悄改变既有超时语义；
+     * 4 参构造场景下该常量不再参与，超时完全由实例字段 lockTimeoutSeconds 承载。</p>
      */
-    private static final long LOCK_TIMEOUT_SECONDS = 10;
+    private static final long DEFAULT_LOCK_TIMEOUT_SECONDS = 10;
 
     /**
-     * 发送事件（无上下文），核心入口方法。
+     * 本实例的锁等待超时时间（秒）。
      *
-     * <p>干什么：接收外部事件，构建执行管道上下文，加锁后驱动管道执行状态流转全流程。</p>
+     * <p>干什么：sendEvent 加锁时以本字段作为 tryLock 的等待上限，超时快速失败。</p>
+     * <p>为什么：锁等待超时需跟随模板实例（可配置契约），使不同业务可注入各自的快速失败时长，
+     * 而非全局硬编码；final 保证构造后不可变，避免运行期被篡改导致并发行为漂移。</p>
+     */
+    private final long lockTimeoutSeconds;
+
+    /**
+     * 全参构造：显式指定锁等待超时。
      *
-     * <p>为什么：通过 bizId 维度的可重入锁保证同一业务实体的状态变更串行执行，
-     * 避免并发场景下状态不一致问题（例如两个请求同时将订单从"待支付"改为"已取消"和"已支付"，
-     * 不加锁会导致最终状态不可预测）。纯 YAML 驱动下不再接收任何业务上下文参数。</p>
+     * <p>干什么：接收注册表、持久化策略、锁实现与锁等待超时（秒），构造超时可定制的模板实例。</p>
+     *
+     * <p>为什么：不同业务对"持锁期间等待多久快速失败"的诉求不同（如实时性高的业务希望秒级失败），
+     * 超时必须随实例注入而非全局常量，本构造是超时可配置契约的唯一赋值入口。</p>
+     *
+     * @param registry              状态机注册表
+     * @param statePersisterStrategy 状态持久化策略
+     * @param lock                  进程内分布式锁实现
+     * @param lockTimeoutSeconds    锁等待超时（秒），0 表示被占用期间立即失败不等待
+     */
+    public StateMachineTemplate(StateMachineRegistry registry, IStatePersisterStrategy statePersisterStrategy, IDistributedLock lock, long lockTimeoutSeconds) {
+        // 为什么：字段为 final 不可变，注册表只能在构造期一次性绑定 —— 干什么：将入参 registry 赋给实例字段
+        this.registry = registry;
+        // 为什么：字段为 final 不可变，持久化策略只能在构造期一次性绑定 —— 干什么：将入参 statePersisterStrategy 赋给实例字段
+        this.statePersisterStrategy = statePersisterStrategy;
+        // 为什么：字段为 final 不可变，锁实现只能在构造期一次性绑定 —— 干什么：将入参 lock 赋给实例字段
+        this.lock = lock;
+        // 为什么：锁等待超时是新增的实例级契约，必须随构造传入而非读静态常量 —— 干什么：将入参 lockTimeoutSeconds 赋给实例字段
+        this.lockTimeoutSeconds = lockTimeoutSeconds;
+    }
+
+    /**
+     * 兼容构造：锁等待超时取默认 10s。
+     *
+     * <p>干什么：接收注册表、持久化策略、锁实现三参，委托 4 参构造并传入 DEFAULT_LOCK_TIMEOUT_SECONDS。</p>
+     *
+     * <p>为什么：spider 与 StatemachineAutoConfiguration 等既有调用方均以 3 参构造实例化模板，
+     * 该构造必须原样保留，且默认值钉死为历史常量 10s，保证既有行为零漂移。</p>
+     *
+     * @param registry              状态机注册表
+     * @param statePersisterStrategy 状态持久化策略
+     * @param lock                  进程内分布式锁实现
+     */
+    public StateMachineTemplate(StateMachineRegistry registry, IStatePersisterStrategy statePersisterStrategy, IDistributedLock lock) {
+        // 为什么：既有调用方以 3 参构造实例化且行为不能变，默认超时必须等于原常量 10s —— 干什么：委托 4 参构造并传入 DEFAULT_LOCK_TIMEOUT_SECONDS
+        this(registry, statePersisterStrategy, lock, DEFAULT_LOCK_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * 发送事件（无上下文），枚举强类型唯一公共入口。
+     *
+     * <p>干什么：接收 IEvent 枚举事件，取 getEventId() 解析出事件标识后委托私有核心方法执行状态流转全流程。</p>
+     *
+     * <p>为什么：以枚举强类型在编译期约束事件入参，杜绝裸字符串事件回潮；
+     * 同时保证对外仅存在一个 sendEvent 入口（反射契约：getMethods 中名为 sendEvent 的 public 方法恰好 1 个且第三参非 String）。</p>
+     *
+     * @param machineCode 业务编码，标识状态机类型
+     * @param bizId       业务实体ID
+     * @param event       事件枚举
+     * @param <E>         IEvent 枚举类型
+     * @return 状态机执行结果
+     */
+    public <E extends IEvent> StateMachineResult sendEvent(String machineCode, String bizId, E event) {
+        // 为什么：管道与流转匹配均以字符串事件标识运作，枚举入口需先解析为 eventId 才能复用既有管道 —— 干什么：取 event.getEventId() 委托私有核心方法 doSendEvent
+        return doSendEvent(machineCode, bizId, event.getEventId());
+    }
+
+    /**
+     * 查询业务实体当前状态。
+     *
+     * <p>干什么：根据 machineCode 与 bizId 直接读取持久化策略中记录的当前状态并原样返回。</p>
+     *
+     * <p>为什么：D2 决策规定持久化层（DB）是状态唯一真实来源（Source of Truth），
+     * 查询路径必须与流转路径（resolve 步骤）读取同一份数据，避免内存缓存造成读数漂移；
+     * 同时无记录时返回 null 是本方法的钉死契约——initialState 兜底仅属于 resolve 管道的行为，
+     * 不应混入纯查询语义，调用方需自行处理 null（表示实体从未流转过）。</p>
+     *
+     * @param machineCode 业务编码，标识状态机类型
+     * @param bizId       业务实体ID
+     * @return 当前状态；持久化层无记录时返回 null
+     */
+    public String getCurrentState(String machineCode, String bizId) {
+        // 为什么：查询以持久化策略为唯一真实来源，且纯查询无需加锁、不做缓存与 initialState 兜底 —— 干什么：直接委托 statePersisterStrategy.readCurrentState 并返回结果
+        return statePersisterStrategy.readCurrentState(machineCode, bizId);
+    }
+
+    /**
+     * 查询业务实体当前状态下全部可执行的事件标识。
+     *
+     * <p>干什么：读取当前状态（无记录时回退 initialState），过滤状态机定义中
+     * sourceState 与之匹配的流转，收集其事件标识返回 List&lt;String&gt;。</p>
+     *
+     * <p>为什么：业务方在驱动流转前需要感知"当前还能做什么"，以避免盲目 sendEvent 撞上不合法事件；
+     * 查询侧允许 initialState 回退（D2 决策），使从未流转过的实体也能得到与首次 sendEvent
+     * 的 resolve 步骤一致的事件视图，两处语义不漂移。</p>
+     *
+     * @param machineCode 业务编码，标识状态机类型
+     * @param bizId       业务实体ID
+     * @return 当前状态下可执行的事件标识列表；状态机定义不存在时返回空列表
+     */
+    public List<String> getAvailableEvents(String machineCode, String bizId) {
+        // 为什么：定义是流转元数据的唯一来源，复用既有注册表查找避免重复实现查找逻辑 —— 干什么：按 machineCode 从注册表获取状态机定义
+        StateMachineDefinition definition = registry.getDefinition(machineCode);
+        // 为什么：定义不存在时不存在任何合法流转，返回空列表比 NPE 更符合查询语义且不与 resolve 的失败路径耦合 —— 干什么：判空并返回不可变空列表
+        if (definition == null) return List.of();
+        // 为什么：复用本类查询方法，保持"当前状态读持久化策略"的单一来源不漂移 —— 干什么：调用 getCurrentState 读取持久化状态
+        String currentState = getCurrentState(machineCode, bizId);
+        // 为什么：查询侧允许 initialState 回退（D2 决策），与 resolve 管道对未流转实体的源状态推导语义一致 —— 干什么：当前状态为 null 时回退 definition.getInitialState()
+        String effectiveState = (currentState != null) ? currentState : definition.getInitialState();
+        // 为什么：可用事件即以当前状态为源状态的全部流转的事件标识，Stream 链式写法避免手写循环 —— 干什么：过滤 sourceState 匹配的流转并收集 event 为 List<String>
+        return definition.getTransitions().stream()
+                .filter(t -> t.sourceState().equals(effectiveState))
+                .map(StateMachineDefinition.TransitionDefinition::event)
+                .toList();
+    }
+
+    /**
+     * 判断指定事件在业务实体当前状态下是否可执行。
+     *
+     * <p>干什么：复用 getAvailableEvents 查询当前状态下的全部可执行事件标识，判断 eventId 是否在其中。</p>
+     *
+     * <p>为什么：业务方在驱动流转前需要布尔式的"能否执行"判定以做流程分支，避免盲目 sendEvent 撞上
+     * 不合法事件；复用查询视图保证判定口径与 getAvailableEvents 完全一致，不重复实现状态读取与流转过滤。</p>
+     *
+     * @param machineCode 业务编码，标识状态机类型
+     * @param bizId       业务实体ID
+     * @param eventId     事件ID
+     * @return 当前状态下该事件可执行返回 true，否则返回 false（含状态机定义不存在的情形）
+     */
+    public boolean canExecute(String machineCode, String bizId, String eventId) {
+        // 为什么：判定口径必须与查询视图一致，且未知 machineCode 时 getAvailableEvents 返回空列表使 contains 天然为 false，无需额外判空 —— 干什么：返回当前状态可用事件列表是否包含 eventId
+        return getAvailableEvents(machineCode, bizId).contains(eventId);
+    }
+
+    /**
+     * 发送事件核心实现（私有），承接 String 事件标识形参的管道逻辑。
+     *
+     * <p>干什么：接收事件标识，构建执行管道上下文，加锁后驱动管道执行状态流转全流程。</p>
+     *
+     * <p>为什么：对外公共入口仅保留枚举强类型形态，在编译期杜绝裸字符串事件回潮；
+     * 而管道与流转匹配均以字符串事件标识运作，事件标识由枚举入口解析一次后传入本方法，
+     * 故本方法保持私有、仅由枚举入口调用，对外不暴露任何 String 形态的 sendEvent。</p>
      *
      * @param machineCode 业务编码，标识状态机类型
      * @param bizId       业务实体ID
      * @param eventId     事件ID
      * @return 状态机执行结果
      */
-    public StateMachineResult sendEvent(String machineCode, String bizId, String eventId) {
-        log.info("开始发送事件: machineCode={}, bizId={}, eventId={}", machineCode, bizId, eventId);
+    private StateMachineResult doSendEvent(String machineCode, String bizId, String eventId) {
+        // 为什么：过程日志高频且无排障增量，info 级会淹没生产日志 —— 干什么：由 info 降为 debug
+        log.debug("开始发送事件: machineCode={}, bizId={}, eventId={}", machineCode, bizId, eventId);
 
         ExecutionPipelineContext ctx = new ExecutionPipelineContext(machineCode, bizId, eventId);
 
@@ -80,15 +217,18 @@ public class StateMachineTemplate {
         String lockKey = machineCode + ":" + bizId;
         boolean locked = false;
         try {
-            if (!lock.tryLock(lockKey, LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                log.warn("获取锁超时，并发执行被拒绝: machineCode={}, bizId={}, 超时时间={}s", machineCode, bizId, LOCK_TIMEOUT_SECONDS);
+            // 为什么：锁等待超时改为跟随模板实例（可配置契约），不同业务可注入各自的快速失败时长而非全局 10s —— 干什么：tryLock 等待上限由常量 LOCK_TIMEOUT_SECONDS 换为实例字段 lockTimeoutSeconds
+            if (!lock.tryLock(lockKey, lockTimeoutSeconds, TimeUnit.SECONDS)) {
+                // 为什么：拒绝日志需反映实际生效的实例超时值，便于按业务配置排查 —— 干什么：日志中的超时值由常量换为实例字段 lockTimeoutSeconds
+                log.warn("获取锁超时，并发执行被拒绝: machineCode={}, bizId={}, 超时时间={}s", machineCode, bizId, lockTimeoutSeconds);
                 return StateMachineResult.failed(machineCode, "concurrent execution timeout for bizId: " + bizId);
             }
             // 为什么：仅在真正拿到锁后置位，确保 finally 不会在未持锁路径上误调 unlock —— 干什么：避免切换为会抛 IllegalMonitorStateException 的锁实现（如 Redisson）时崩溃
             locked = true;
             log.debug("成功获取锁: machineCode={}, bizId={}", machineCode, bizId);
             StateMachineResult result = executePipeline(ctx);
-            log.info("事件执行完成: machineCode={}, bizId={}, eventId={}, 成功={}", machineCode, bizId, eventId, result.isSuccess());
+            // 为什么：过程日志高频且无排障增量，info 级会淹没生产日志 —— 干什么：由 info 降为 debug
+            log.debug("事件执行完成: machineCode={}, bizId={}, eventId={}, 成功={}", machineCode, bizId, eventId, result.isSuccess());
             return result;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -153,7 +293,8 @@ public class StateMachineTemplate {
         String currentState = statePersisterStrategy.readCurrentState(machineCode, ctx.getBizId());
         ctx.setSourceState((currentState != null) ? currentState : definition.getInitialState());
 
-        StateMachineDefinition.TransitionDefinition transition = findTransition(ctx, ctx.getSourceState(), ctx.getEvent());
+        // 为什么：findTransition 改为直接复用本步骤已取得的 definition，避免对注册表的重复查询 —— 干什么：调用 findTransition 时传入 definition 而非 ctx
+        StateMachineDefinition.TransitionDefinition transition = findTransition(definition, ctx.getSourceState(), ctx.getEvent());
         if (transition == null) {
             ctx.setResult(StateMachineResult.failed(machineCode, "no transition from state '" + ctx.getSourceState() + "' on event '" + ctx.getEvent() + "'"));
             return;
@@ -208,13 +349,14 @@ public class StateMachineTemplate {
     /**
      * 查找流转定义：根据源状态和事件从状态机定义中查找匹配的流转。
      *
-     * <p>干什么：在状态机定义的流转列表中，查找 sourceState 和 event 均匹配的流转定义。</p>
+     * <p>干什么：在调用方传入的状态机定义的流转列表中，查找 sourceState 和 event 均匹配的流转定义。</p>
      * <p>为什么：状态机的核心语义就是"在某个状态下收到某个事件后迁移到目标状态"，
-     * 此方法是流转查找的统一入口，被解析步骤复用，避免流转匹配逻辑散落各处。</p>
+     * 此方法是流转查找的统一入口，被解析步骤复用，避免流转匹配逻辑散落各处；
+     * 定义由调用方（resolve 步骤，已保证非 null）传入而非重复查询注册表，
+     * 保证一次流转全程只查一次注册表，匹配语义不变。</p>
      */
-    private StateMachineDefinition.TransitionDefinition findTransition(ExecutionPipelineContext ctx, String sourceState, String eventId) {
-        StateMachineDefinition definition = registry.getDefinition(ctx.getMachineCode());
-        if (definition == null) return null;
+    private StateMachineDefinition.TransitionDefinition findTransition(StateMachineDefinition definition, String sourceState, String eventId) {
+        // 为什么：调用方 resolve 已取得定义并对 null 提前短路，方法内重复查询注册表与判空属死代码 —— 干什么：删除重复 getDefinition 与判空，直接在传入定义上过滤流转
         return definition.getTransitions().stream().filter(t -> t.sourceState().equals(sourceState) && t.event().equals(eventId)).findFirst().orElse(null);
     }
 }

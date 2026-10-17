@@ -164,10 +164,11 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     }
 
     /**
-     * 将新状态写入数据库（待 Task 2.3 实现）。
+     * 将新状态写入数据库（无条件落库入口）。
      *
-     * <p>为什么：Task 2.1 仅实现缓存定位逻辑，writeNewState 的具体 UpdateWrapper 条件更新由 Task 2.3 实现。
-     * 干什么：当前抛出 UnsupportedOperationException，提示调用方该方法尚未实现。</p>
+     * <p>为什么：接口保留不携带源状态条件的落库形态，供不需要乐观并发控制的调用方使用；
+     * 无条件更新无法防御并发抢占，故内部委托条件更新并以影响行数兜底校验，失败时明确报错而非静默成功。
+     * 干什么：以 fromState=null 委托 4 参条件更新完成落库；影响行数为 0 时抛出 IllegalStateException。</p>
      *
      * @param machineCode 业务编码
      * @param bizId       业务标识
@@ -184,16 +185,18 @@ public class EntityMapperStatePersisterStrategy implements IStatePersisterStrate
     }
 
     /**
-     * 条件更新状态（并发安全落库，待 Task 2.3 实现）。
+     * 条件更新状态（并发安全落库）。
      *
-     * <p>为什么：Task 2.1 仅实现缓存定位逻辑，条件更新的具体实现由 Task 2.3 完成。
-     * 干什么：当前抛出 UnsupportedOperationException，提示调用方该方法尚未实现。</p>
+     * <p>为什么：状态可能被并发推进，落库必须携带期望的源状态作为 WHERE 条件，
+     * 实现「当前状态仍等于 fromState 才写入」的乐观并发控制，防止并发场景下状态被覆盖或回退。
+     * 干什么：从缓存获取 MapperHolder → 构造 UpdateWrapper（WHERE idColumn=bizId，
+     * fromState 非空时追加 bizColumn=fromState）→ SET bizColumn=toState → 执行更新并返回影响行数。</p>
      *
      * @param machineCode 业务编码
      * @param bizId       业务标识
-     * @param fromState   期望的源状态（WHERE 条件）
+     * @param fromState   期望的源状态（WHERE 条件）；为 null 时不校验源状态，仅按主键更新
      * @param toState     目标新状态
-     * @return 受影响行数（本 stub 不返回，直接抛异常）
+     * @return 受影响行数（0 表示条件不满足/状态已被并发推进）
      */
     @Override
     public int writeNewState(String machineCode, String bizId, String fromState, String toState) {

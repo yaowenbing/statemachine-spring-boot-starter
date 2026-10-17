@@ -75,9 +75,16 @@ public class StatemachineAutoConfiguration {
     @ConditionalOnMissingBean(StateMachineTemplate.class)
     public StateMachineTemplate stateMachineTemplate(StateMachineRegistry registry,
                                                    RoutingStatePersisterStrategy strategy,
-                                                   IDistributedLock lock) {
-        log.info("注册 StateMachineTemplate Bean");
-        return new StateMachineTemplate(registry, strategy, lock);
+                                                   IDistributedLock lock,
+                                                   // 为什么：锁等待超时须从配置读入，且 YamlRegistrationRedTest 契约禁止 @Bean 方法直接以 StatemachineProperties 类型入参 —— 干什么：经 ObjectProvider 间接获取属性 Bean
+                                                   ObjectProvider<StatemachineProperties> propertiesProvider) {
+        // 为什么：getIfAvailable 在属性 Bean 缺失时返回 null，直接解引用会 NPE —— 干什么：先取出属性对象再判空
+        StatemachineProperties properties = propertiesProvider.getIfAvailable();
+        // 为什么：StateMachineTemplate.DEFAULT_LOCK_TIMEOUT_SECONDS 为 private 常量无法复用，回落值必须与 3 参兼容构造的历史默认 10s 完全一致 —— 干什么：属性 Bean 缺失时回落 10L
+        long lockTimeoutSeconds = properties == null ? 10L : properties.getLockTimeoutSeconds();
+        log.info("注册 StateMachineTemplate Bean, lockTimeoutSeconds={}s", lockTimeoutSeconds);
+        // 为什么：模板实例超时须承载配置值（属性→自动配置→模板实例全链路契约）—— 干什么：改用 4 参构造传入 lockTimeoutSeconds
+        return new StateMachineTemplate(registry, strategy, lock, lockTimeoutSeconds);
     }
 
     // ============ MyBatis 持久化策略：仅当 SqlSessionTemplate 已就绪时注册 ============

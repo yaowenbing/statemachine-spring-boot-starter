@@ -37,8 +37,20 @@ public class StateMachineResult {
     /** 失败原因（仅成功时为 null） */
     private final String errorMessage;
 
-    /** 自定义扩展上下文 */
-    private final String context;
+    /**
+     * 失败即抛：调用方无需判空检查 success，失败结果直接炸出异常收敛处理。
+     *
+     * <p>为什么：调用方拿到失败结果后若继续往下走会掩盖失败原因，需要显式收敛手段强制感知失败；
+     * 干什么：success 为 false 时抛出携带 errorMessage 原文的 {@link StateMachineException}，成功时静默返回。</p>
+     */
+    public void throwIfFailed() {
+        // 为什么：success 为 true 时正常流转路径必须零异常穿透 —— 干什么：成功结果直接返回不干预
+        if (success) {
+            return;
+        }
+        // 为什么：异常消息必须携带 errorMessage 原文供调用方透出失败原因，不加前缀包装 —— 干什么：失败时抛出 StateMachineException
+        throw new StateMachineException(errorMessage);
+    }
 
     /**
      * 创建成功的执行结果。
