@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.worm</groupId>
     <artifactId>statemachine-spring-boot-starter</artifactId>
-    <version>1.0.0</version>
+    <version>0.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>statemachine-spring-boot-starter</name>
@@ -13,9 +13,9 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- 为什么：本开源版本面向 JDK 8 基线（Spring Boot 2.7 / Spring 5.3 / javax 命名空间） —— 干什么：编译源码级别与字节码目标均为 Java 8 -->
-        <maven.compiler.source>8</maven.compiler.source>
-        <maven.compiler.target>8</maven.compiler.target>
+        <!-- 为什么：全仓基线统一到 JDK 17（Spring Boot 2.7 支持 JDK 17，javax 命名空间不变） —— 干什么：编译源码级别与字节码目标均为 Java 17 -->
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
         <spring-boot.version>2.7.18</spring-boot.version>
         <!-- 为什么：Lombok 1.18.30 发布于 JDK 21 之前，在 JDK 21 的 javac 下注解处理器静默失效；1.18.34 起官方支持 JDK 8~21 全基线 —— 干什么：固定 lombok 版本保证 JDK 8 与 JDK 21 下注解处理均生效 -->
         <lombok.version>1.18.34</lombok.version>
