@@ -7,7 +7,7 @@ import com.worm.statemachine.core.StateMachineDefinition;
 import com.worm.statemachine.core.StateMachineDefinition.TransitionDefinition;
 import com.worm.statemachine.core.Strings;
 import com.worm.statemachine.persist.RoutingStatePersisterStrategy;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.mybatis.spring.SqlSessionTemplate;
