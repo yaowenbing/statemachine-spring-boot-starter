@@ -33,7 +33,7 @@
 | Spring Boot | 4.0.6 |
 | MyBatis-Plus | 可选（`mybatis-plus-spring-boot4-starter` 3.5.16，仅使用内置实体驱动持久化策略时需要；依赖声明为 `optional`，按需引入） |
 
-本仓库为 JDK 17 / Spring Boot 4.0.6 基线，编译产物为 Java 17 字节码，可直接用于 Spring Boot 4.x 项目。
+本仓库为 JDK 21 / Spring Boot 4.0.6 基线，编译产物为 Java 21 字节码，可直接用于 Spring Boot 4.x 项目。
 
 ## 快速开始
 

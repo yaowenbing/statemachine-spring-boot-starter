@@ -33,7 +33,7 @@ The engine does not depend on any specific ORM — persistence goes through the 
 | Spring Boot | 4.0.6 |
 | MyBatis-Plus | Optional (`mybatis-plus-spring-boot4-starter` 3.5.16, only required when using the built-in entity-driven persistence strategy; the dependency is declared as `optional`, bring it in as needed) |
 
-This repository targets the JDK 17 / Spring Boot 4.0.6 baseline; build output is Java 17 bytecode, ready to use in Spring Boot 4.x projects.
+This repository targets the JDK 21 / Spring Boot 4.0.6 baseline; build output is Java 21 bytecode, ready to use in Spring Boot 4.x projects.
 
 ## Quick Start
 

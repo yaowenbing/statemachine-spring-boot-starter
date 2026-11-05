@@ -13,8 +13,8 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- 为什么：全仓基线统一到 JDK 17（Spring Boot 4.0.6 要求 JDK 17+，jakarta 命名空间） —— 干什么：以 release=17 一次性约束源码级别、字节码目标与 JDK API 签名，防止误引高版本 API -->
-        <maven.compiler.release>17</maven.compiler.release>
+        <!-- 为什么：7 个无源码预置构件的 class 为 major 65，构建/运行 JDK 已切到 21，编译目标需与之对齐 —— 干什么：以 release=21 一次性约束源码级别、字节码目标与 JDK API 签名 -->
+        <maven.compiler.release>21</maven.compiler.release>
         <spring-boot.version>4.0.6</spring-boot.version>
         <!-- 为什么：Lombok 1.18.30 发布于 JDK 21 之前，在 JDK 21 的 javac 下注解处理器静默失效；1.18.34 起官方支持 JDK 8~21 全基线 —— 干什么：固定 lombok 版本保证 JDK 8 与 JDK 21 下注解处理均生效 -->
         <lombok.version>1.18.34</lombok.version>
@@ -87,4 +87,53 @@
             </plugin>
         </plugins>
     </build>
+
+    <!-- 为什么：开源模块刻意无 parent，继承不到构建父的 distributionManagement，裸 mvn deploy 会因缺发布目标失败 —— 干什么：自持一份与 worm-bom 对齐的发布配置（顶层默认 + profile 覆盖） -->
+    <distributionManagement>
+        <repository>
+            <id>nexusReleases</id>
+            <name>releases</name>
+            <url>http://127.0.0.1:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>nexusSnapshots</id>
+            <name>snapshots</name>
+            <url>http://127.0.0.1:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <profiles>
+        <!-- 为什么：IDEA 全局勾选了 settings-local，POM 内未声明时每次构建都报 profile 不存在 —— 干什么：声明同名 profile 承接本地私服地址 -->
+        <profile>
+            <id>settings-local</id>
+            <distributionManagement>
+                <repository>
+                    <id>nexusReleases</id>
+                    <name>releases</name>
+                    <url>http://127.0.0.1:8081/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>nexusSnapshots</id>
+                    <name>snapshots</name>
+                    <url>http://127.0.0.1:8081/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+        <!-- 为什么：切换到公司内网私服时不应改 POM —— 干什么：以 settings-swcares 覆盖发布地址 -->
+        <profile>
+            <id>settings-swcares</id>
+            <distributionManagement>
+                <repository>
+                    <id>psi</id>
+                    <name>releases</name>
+                    <url>http://maven.sw/repository/maven-releases/</url>
+                </repository>
+                <snapshotRepository>
+                    <id>psi</id>
+                    <name>snapshots</name>
+                    <url>http://maven.sw/repository/maven-snapshots/</url>
+                </snapshotRepository>
+            </distributionManagement>
+        </profile>
+    </profiles>
 </project>
