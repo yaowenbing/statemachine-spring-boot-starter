@@ -15,7 +15,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- 为什么：7 个无源码预置构件的 class 为 major 65，构建/运行 JDK 已切到 21，编译目标需与之对齐 —— 干什么：以 release=21 一次性约束源码级别、字节码目标与 JDK API 签名 -->
         <maven.compiler.release>21</maven.compiler.release>
-        <spring-boot.version>4.0.6</spring-boot.version>
+        <spring-boot.version>4.0.8</spring-boot.version>
         <!-- 为什么：Lombok 1.18.30 发布于 JDK 21 之前，在 JDK 21 的 javac 下注解处理器静默失效；1.18.34 起官方支持 JDK 8~21 全基线 —— 干什么：固定 lombok 版本保证 JDK 8 与 JDK 21 下注解处理均生效 -->
         <lombok.version>1.18.34</lombok.version>
         <!-- 为什么：MyBatis-Plus 与 Boot 基线强绑定，Boot 4.0.6（jakarta 命名空间）基线换用 boot4 变体坐标；该变体不在 spring-boot-dependencies 管理范围需自持版本，取本地仓库已有的最新 3.5.x（3.5.9 起提供 boot4 变体） —— 干什么：固定 MyBatis-Plus Boot4 变体版本 -->
