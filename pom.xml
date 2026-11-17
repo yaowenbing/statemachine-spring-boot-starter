@@ -88,7 +88,7 @@
         </plugins>
     </build>
 
-    <!-- 为什么：开源模块刻意无 parent，继承不到构建父的 distributionManagement，裸 mvn deploy 会因缺发布目标失败 —— 干什么：自持一份与 worm-bom 对齐的发布配置（顶层默认 + profile 覆盖） -->
+    <!-- 为什么：开源模块刻意无 parent，继承不到构建父的 distributionManagement，裸 mvn deploy 会因缺发布目标失败 —— 干什么：自持一份与 worm-bom-parent 对齐的发布配置（顶层默认 + profile 覆盖） -->
     <distributionManagement>
         <repository>
             <id>nexusReleases</id>
